@@ -3,7 +3,8 @@ import express from "express";
 import mongoose from "mongoose";
 import cors from "cors";
 import dotenv from "dotenv";
-
+import path from "path";
+import { fileURLToPath } from "url";
 import auth from "./routes/auth.js";
 import recipes from "./routes/recipes.js";
 import collections from "./routes/collections.js";
@@ -42,7 +43,9 @@ app.use("/api/recipes", recipes);
 app.use("/api/recipes", community);
 app.use("/api/collections", collections);
 app.use("/api/admin", admin);
-
+const dist = path.join(path.dirname(fileURLToPath(import.meta.url)), "../client/dist");
+app.use(express.static(dist));
+app.get("*", (req, res) => res.sendFile(path.join(dist, "index.html")));
 // Error handler
 app.use((err, req, res, next) => {
   console.error("Server error:", err.message);
