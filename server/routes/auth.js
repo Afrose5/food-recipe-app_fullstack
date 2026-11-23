@@ -3,6 +3,7 @@ import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import { User } from "../models.js";
 import { protect, upload } from "../middleware.js";
+import { deleteImage, saveImage } from "../storage.js";
 
 const r = Router();
 const sign = (u) => ({
@@ -31,10 +32,12 @@ r.get("/me", protect, (req, res) => res.json(req.user));
 
 r.put("/me", protect, upload.single("avatar"), async (req, res) => {
   const { name, bio } = req.body;
+  const previousAvatar = req.user.avatar;
   if (name) req.user.name = name;
   if (bio !== undefined) req.user.bio = bio;
-  if (req.file) req.user.avatar = "/uploads/" + req.file.filename;
+  if (req.file) req.user.avatar = await saveImage(req.file, `avatars/${req.user._id}`);
   await req.user.save();
+  if (req.file) await deleteImage(previousAvatar);
   res.json(req.user);
 });
 export default r;

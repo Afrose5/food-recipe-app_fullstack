@@ -1,6 +1,5 @@
 import jwt from "jsonwebtoken";
 import multer from "multer";
-import path from "path";
 import { User } from "./models.js";
 
 export const protect = async (req, res, next) => {
@@ -24,10 +23,7 @@ export const adminOnly = (req, res, next) =>
   req.user?.role === "admin" ? next() : res.status(403).json({ message: "Admins only" });
 
 export const upload = multer({
-  storage: multer.diskStorage({
-    destination: "uploads",
-    filename: (req, f, cb) => cb(null, Date.now() + path.extname(f.originalname)),
-  }),
+  storage: multer.memoryStorage(),
   limits: { fileSize: 3 * 1024 * 1024 },
   fileFilter: (req, f, cb) => cb(null, /image\/(jpeg|png|webp)/.test(f.mimetype)),
 });

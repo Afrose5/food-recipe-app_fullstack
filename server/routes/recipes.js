@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { Recipe, Review, Comment, Collection } from "../models.js";
 import { protect, optionalAuth, upload } from "../middleware.js";
+import { deleteImage, saveImage } from "../storage.js";
 
 const r = Router();
 const esc = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -46,7 +47,8 @@ const parse = (b) => {
 r.post("/", protect, upload.single("image"), async (req, res) => {
   const data = parse(req.body);
   if (!data.title) return res.status(400).json({ message: "Title is required" });
-  const recipe = await Recipe.create({ ...data, author: req.user._id, image: req.file ? "/uploads/" + req.file.filename : undefined });
+  const image = req.file ? await saveImage(req.file, `recipes/${req.user._id}`) : undefined;
+  const recipe = await Recipe.create({ ...data, author: req.user._id, image });
   res.status(201).json(recipe);
 });
 
@@ -60,17 +62,23 @@ const owned = async (req, res, next) => {
 
 r.put("/:id", protect, owned, upload.single("image"), async (req, res) => {
   const data = parse(req.body);
+  const previousImage = req.recipe.image;
   delete data.author;
+  delete data.image;
   Object.assign(req.recipe, data);
-  if (req.file) req.recipe.image = "/uploads/" + req.file.filename;
-  res.json(await req.recipe.save());
+  if (req.file) req.recipe.image = await saveImage(req.file, `recipes/${req.user._id}`);
+  const recipe = await req.recipe.save();
+  if (req.file) await deleteImage(previousImage);
+  res.json(recipe);
 });
 
 r.delete("/:id", protect, owned, async (req, res) => {
+  const image = req.recipe.image;
   await Promise.all([
     req.recipe.deleteOne(), Review.deleteMany({ recipe: req.params.id }), Comment.deleteMany({ recipe: req.params.id }),
     Collection.updateMany({}, { $pull: { recipes: req.params.id } }),
   ]);
+  await deleteImage(image);
   res.json({ message: "Deleted" });
 });
 
